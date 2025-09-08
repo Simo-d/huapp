@@ -1,2 +1,7 @@
 /node_modules
 /TROUBLESHOOTING.md
+/server/node_modules
+/server/package-lock.json
+/server/yarn.lock
+package-lock.json
+yarn.lock
