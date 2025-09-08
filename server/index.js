@@ -19,6 +19,7 @@ const rapporteursRoutes = require('./routes/rapporteurs');
 const meetingsRoutes = require('./routes/meetings');
 const defensesRoutes = require('./routes/defenses');
 const commissionMembersRoutes = require('./routes/commission-members');
+const evaluationsRoutes = require('./routes/evaluations');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -61,6 +62,7 @@ app.use('/api/rapporteurs', rapporteursRoutes);
 app.use('/api/meetings', meetingsRoutes);
 app.use('/api/defenses', defensesRoutes);
 app.use('/api/commission-members', commissionMembersRoutes);
+app.use('/api/evaluations', evaluationsRoutes);
 
 // Test route
 app.get('/api/test', (req, res) => {

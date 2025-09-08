@@ -1,236 +1,289 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
 const { db } = require('../database');
 const PDFGenerator = require('../utils/pdfGenerator');
-const path = require('path');
-const fs = require('fs');
 
-// Generate candidate report
-router.get('/candidate/:id', async (req, res) => {
+// Get all reports
+router.get('/', (req, res) => {
+  db.all(
+    `SELECT r.*, a.candidate_id, c.first_name, c.last_name, rap.name as rapporteur_name
+     FROM reports r
+     LEFT JOIN applications a ON r.application_id = a.id
+     LEFT JOIN candidates c ON a.candidate_id = c.id
+     LEFT JOIN rapporteurs rap ON r.rapporteur_id = rap.id
+     ORDER BY r.submission_date DESC`,
+    (err, reports) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(reports || []);
+    }
+  );
+});
+
+// Get report by ID
+router.get('/:id', (req, res) => {
+  const { id } = req.params;
+  db.get(
+    `SELECT r.*, a.candidate_id, c.first_name, c.last_name, rap.name as rapporteur_name
+     FROM reports r
+     LEFT JOIN applications a ON r.application_id = a.id
+     LEFT JOIN candidates c ON a.candidate_id = c.id
+     LEFT JOIN rapporteurs rap ON r.rapporteur_id = rap.id
+     WHERE r.id = ?`,
+    [id],
+    (err, report) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      if (!report) {
+        return res.status(404).json({ error: 'Report not found' });
+      }
+      res.json(report);
+    }
+  );
+});
+
+// Create new report
+router.post('/', (req, res) => {
+  const { application_id, rapporteur_id, submission_date, content, recommendation } = req.body;
+  
+  db.run(
+    `INSERT INTO reports (application_id, rapporteur_id, submission_date, content, recommendation)
+     VALUES (?, ?, ?, ?, ?)`,
+    [application_id, rapporteur_id, submission_date || new Date().toISOString().split('T')[0], content, recommendation],
+    function(err) {
+      if (err) {
+        console.error('Error creating report:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      
+      // Update evaluation status if exists
+      db.run(
+        `UPDATE evaluations 
+         SET status = 'Rapport soumis' 
+         WHERE application_id = ? AND evaluator_id = ?`,
+        [application_id, rapporteur_id]
+      );
+      
+      // Check if all reports are submitted for this application
+      db.get(
+        `SELECT COUNT(DISTINCT e.evaluator_id) as expected, COUNT(DISTINCT r.rapporteur_id) as received
+         FROM evaluations e
+         LEFT JOIN reports r ON e.application_id = r.application_id AND e.evaluator_id = r.rapporteur_id
+         WHERE e.application_id = ?`,
+        [application_id],
+        (err, counts) => {
+          if (!err && counts && counts.expected === counts.received && counts.expected > 0) {
+            // All reports received, update application
+            db.run(
+              'UPDATE applications SET current_stage = ?, progress = ? WHERE id = ?',
+              ['Autorisation Soutenance', 70, application_id]
+            );
+          }
+        }
+      );
+      
+      res.status(201).json({
+        id: this.lastID,
+        message: 'Report created successfully'
+      });
+    }
+  );
+});
+
+// Update report
+router.put('/:id', (req, res) => {
+  const { id } = req.params;
+  const { application_id, rapporteur_id, submission_date, content, recommendation } = req.body;
+  
+  db.run(
+    `UPDATE reports 
+     SET application_id = ?, rapporteur_id = ?, submission_date = ?, content = ?, recommendation = ?
+     WHERE id = ?`,
+    [application_id, rapporteur_id, submission_date, content, recommendation, id],
+    function(err) {
+      if (err) {
+        console.error('Error updating report:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Report not found' });
+      }
+      res.json({ message: 'Report updated successfully' });
+    }
+  );
+});
+
+// Delete report
+router.delete('/:id', (req, res) => {
   const { id } = req.params;
   
-  try {
-    // Get candidate data
-    const candidate = await new Promise((resolve, reject) => {
-      db.get('SELECT * FROM candidates WHERE id = ?', [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-
-    if (!candidate) {
-      return res.status(404).json({ error: 'Candidate not found' });
+  db.run('DELETE FROM reports WHERE id = ?', [id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
     }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+    res.json({ message: 'Report deleted successfully' });
+  });
+});
 
-    // Get applications for this candidate
-    const applications = await new Promise((resolve, reject) => {
-      db.all('SELECT * FROM applications WHERE candidate_id = ?', [id], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+// Get reports by application
+router.get('/application/:applicationId', (req, res) => {
+  const { applicationId } = req.params;
+  
+  db.all(
+    `SELECT r.*, rap.name as rapporteur_name, rap.institution
+     FROM reports r
+     LEFT JOIN rapporteurs rap ON r.rapporteur_id = rap.id
+     WHERE r.application_id = ?
+     ORDER BY r.submission_date DESC`,
+    [applicationId],
+    (err, reports) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(reports || []);
+    }
+  );
+});
 
-    // Generate PDF
-    const pdf = new PDFGenerator();
-    pdf.generateCandidateReport(candidate, applications);
-    
-    const buffer = await pdf.getBuffer();
-    
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="candidat_${candidate.last_name}_${candidate.first_name}.pdf"`,
-      'Content-Length': buffer.length
-    });
-    
-    res.send(buffer);
+// Get reports by rapporteur
+router.get('/rapporteur/:rapporteurId', (req, res) => {
+  const { rapporteurId } = req.params;
+  
+  db.all(
+    `SELECT r.*, a.candidate_id, c.first_name, c.last_name
+     FROM reports r
+     LEFT JOIN applications a ON r.application_id = a.id
+     LEFT JOIN candidates c ON a.candidate_id = c.id
+     WHERE r.rapporteur_id = ?
+     ORDER BY r.submission_date DESC`,
+    [rapporteurId],
+    (err, reports) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(reports || []);
+    }
+  );
+});
+
+// Generate PDF report for an application
+router.post('/generate/:applicationId', async (req, res) => {
+  const { applicationId } = req.params;
+  
+  try {
+    // Get application details
+    db.get(
+      `SELECT a.*, c.* 
+       FROM applications a
+       LEFT JOIN candidates c ON a.candidate_id = c.id
+       WHERE a.id = ?`,
+      [applicationId],
+      (err, application) => {
+        if (err || !application) {
+          return res.status(404).json({ error: 'Application not found' });
+        }
+        
+        // Get all reports for this application
+        db.all(
+          `SELECT r.*, rap.name as rapporteur_name, rap.institution
+           FROM reports r
+           LEFT JOIN rapporteurs rap ON r.rapporteur_id = rap.id
+           WHERE r.application_id = ?`,
+          [applicationId],
+          async (err, reports) => {
+            if (err) {
+              return res.status(500).json({ error: 'Database error' });
+            }
+            
+            try {
+              const pdfGenerator = new PDFGenerator();
+              const filename = `rapport_evaluation_${applicationId}_${Date.now()}.pdf`;
+              
+              // Generate comprehensive evaluation report
+              pdfGenerator.addHeader('Rapport d\'Évaluation HU');
+              
+              // Candidate information
+              pdfGenerator.doc
+                .fontSize(14)
+                .text('Candidat', { underline: true })
+                .fontSize(11)
+                .text(`Nom: ${application.first_name} ${application.last_name}`)
+                .text(`Département: ${application.department}`)
+                .text(`Titre de thèse: ${application.thesis_title}`)
+                .moveDown();
+              
+              // Reports summary
+              pdfGenerator.doc
+                .fontSize(14)
+                .text('Évaluations des Rapporteurs', { underline: true })
+                .moveDown(0.5);
+              
+              reports.forEach((report, index) => {
+                pdfGenerator.doc
+                  .fontSize(12)
+                  .font('Helvetica-Bold')
+                  .text(`Rapporteur ${index + 1}: ${report.rapporteur_name}`)
+                  .font('Helvetica')
+                  .fontSize(11)
+                  .text(`Institution: ${report.institution}`)
+                  .text(`Date: ${new Date(report.submission_date).toLocaleDateString('fr-FR')}`)
+                  .text(`Recommandation: ${report.recommendation}`)
+                  .moveDown(0.5);
+                
+                if (report.content) {
+                  pdfGenerator.doc
+                    .text('Rapport:', { underline: true })
+                    .text(report.content)
+                    .moveDown();
+                }
+              });
+              
+              // Save the PDF
+              const filepath = await pdfGenerator.save(filename);
+              
+              res.json({
+                success: true,
+                message: 'Rapport généré avec succès',
+                filename: filename,
+                path: `/reports/${filename}`
+              });
+            } catch (error) {
+              console.error('Error generating PDF:', error);
+              res.status(500).json({ error: 'Error generating PDF' });
+            }
+          }
+        );
+      }
+    );
   } catch (error) {
-    console.error('Error generating candidate report:', error);
-    res.status(500).json({ error: 'Error generating report' });
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Generate applications list report
-router.get('/applications', async (req, res) => {
-  try {
-    const applications = await new Promise((resolve, reject) => {
-      db.all(`
-        SELECT a.*, c.first_name, c.last_name, c.email, c.department
-        FROM applications a
-        JOIN candidates c ON a.candidate_id = c.id
-        ORDER BY a.created_at DESC
-      `, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
-
-    const pdf = new PDFGenerator();
-    pdf.generateApplicationsReport(applications);
-    
-    const buffer = await pdf.getBuffer();
-    
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="rapport_candidatures_${Date.now()}.pdf"`,
-      'Content-Length': buffer.length
-    });
-    
-    res.send(buffer);
-  } catch (error) {
-    console.error('Error generating applications report:', error);
-    res.status(500).json({ error: 'Error generating report' });
-  }
-});
-
-// Generate statistics report
-router.get('/statistics', async (req, res) => {
-  try {
-    // Get statistics
-    const candidateStats = await new Promise((resolve, reject) => {
-      db.get(`
-        SELECT 
-          COUNT(*) as totalCandidates,
-          SUM(CASE WHEN status = 'En attente' THEN 1 ELSE 0 END) as pending,
-          SUM(CASE WHEN status = 'En cours' THEN 1 ELSE 0 END) as inProgress,
-          SUM(CASE WHEN status = 'Terminé' THEN 1 ELSE 0 END) as completed
-        FROM candidates
-      `, (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-
-    // Get department distribution
-    const deptStats = await new Promise((resolve, reject) => {
-      db.all(`
-        SELECT department, COUNT(*) as count
-        FROM candidates
-        WHERE department IS NOT NULL
-        GROUP BY department
-      `, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
-
-    const byDepartment = {};
-    deptStats.forEach(row => {
-      byDepartment[row.department] = row.count;
-    });
-
-    const stats = {
-      ...candidateStats,
-      byDepartment,
-      monthly: [
-        { month: 'Janvier', applications: 4, completed: 2 },
-        { month: 'Février', applications: 6, completed: 3 },
-        { month: 'Mars', applications: 8, completed: 5 }
-      ]
-    };
-
-    const pdf = new PDFGenerator();
-    pdf.generateStatisticsReport(stats);
-    
-    const buffer = await pdf.getBuffer();
-    
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="rapport_statistiques_${Date.now()}.pdf"`,
-      'Content-Length': buffer.length
-    });
-    
-    res.send(buffer);
-  } catch (error) {
-    console.error('Error generating statistics report:', error);
-    res.status(500).json({ error: 'Error generating report' });
-  }
-});
-
-// Generate defense convocation
-router.post('/defense-convocation', async (req, res) => {
-  try {
-    const { candidate_name, date, time, location, jury } = req.body;
-
-    const defense = {
-      candidate_name,
-      date,
-      time,
-      location
-    };
-
-    const pdf = new PDFGenerator();
-    pdf.generateDefenseReport(defense, jury || []);
-    
-    const buffer = await pdf.getBuffer();
-    
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="convocation_soutenance_${Date.now()}.pdf"`,
-      'Content-Length': buffer.length
-    });
-    
-    res.send(buffer);
-  } catch (error) {
-    console.error('Error generating defense convocation:', error);
-    res.status(500).json({ error: 'Error generating convocation' });
-  }
-});
-
-// Generate commission meeting report
-router.post('/commission-report', async (req, res) => {
-  try {
-    const { meeting, members, decisions } = req.body;
-
-    const pdf = new PDFGenerator();
-    pdf.generateCommissionReport(meeting, members || [], decisions || []);
-    
-    const buffer = await pdf.getBuffer();
-    
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="pv_commission_${Date.now()}.pdf"`,
-      'Content-Length': buffer.length
-    });
-    
-    res.send(buffer);
-  } catch (error) {
-    console.error('Error generating commission report:', error);
-    res.status(500).json({ error: 'Error generating report' });
-  }
-});
-
-// Export to Excel
-router.get('/export/excel/candidates', async (req, res) => {
-  try {
-    const XLSX = require('xlsx');
-    
-    const candidates = await new Promise((resolve, reject) => {
-      db.all('SELECT * FROM candidates', (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
-
-    // Create workbook
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(candidates);
-    
-    XLSX.utils.book_append_sheet(wb, ws, 'Candidats');
-    
-    // Generate buffer
-    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-    
-    res.set({
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="candidats_${Date.now()}.xlsx"`,
-      'Content-Length': buffer.length
-    });
-    
-    res.send(buffer);
-  } catch (error) {
-    console.error('Error exporting to Excel:', error);
-    res.status(500).json({ error: 'Error exporting data' });
-  }
+// Get report statistics
+router.get('/stats/overview', (req, res) => {
+  db.get(
+    `SELECT 
+      COUNT(*) as total_reports,
+      COUNT(CASE WHEN recommendation = 'Favorable' THEN 1 END) as favorable,
+      COUNT(CASE WHEN recommendation = 'Défavorable' THEN 1 END) as defavorable,
+      COUNT(CASE WHEN recommendation = 'Favorable avec réserves' THEN 1 END) as with_reserves
+     FROM reports`,
+    (err, stats) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(stats);
+    }
+  );
 });
 
 module.exports = router;

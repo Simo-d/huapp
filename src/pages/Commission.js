@@ -497,6 +497,313 @@ const Commission = () => {
                     <option value="Commission Scientifique">Commission Scientifique</option>
                     <option value="Commission HU">Commission HU</option>
                     <option value="Réunion Extraordinaire">Réunion Extraordinaire</option>
+                    <option value="Jury de Soutenance">Jury de Soutenance</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Participants</label>
+                  <textarea
+                    className="form-input"
+                    rows="3"
+                    placeholder="Entrez les noms des participants, séparés par des virgules"
+                    value={meetingForm.attendees}
+                    onChange={(e) => setMeetingForm({...meetingForm, attendees: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Ordre du jour / Décisions</label>
+                  <textarea
+                    className="form-input"
+                    rows="4"
+                    placeholder="Décrivez l'ordre du jour ou les décisions prises"
+                    value={meetingForm.decisions}
+                    onChange={(e) => setMeetingForm({...meetingForm, decisions: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Statut</label>
+                  <select
+                    className="form-input"
+                    value={meetingForm.status}
+                    onChange={(e) => setMeetingForm({...meetingForm, status: e.target.value})}
+                  >
+                    <option value="Planifiée">Planifiée</option>
+                    <option value="En cours">En cours</option>
+                    <option value="Terminée">Terminée</option>
+                    <option value="Annulée">Annulée</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => {
+                  setShowAddMeetingModal(false);
+                  resetMeetingForm();
+                }}>
+                  Annuler
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  <Save size={20} />
+                  Planifier
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Member Modal */}
+      {showAddMemberModal && (
+        <div className="modal-overlay" onClick={() => setShowAddMemberModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Ajouter un Membre</h2>
+              <button className="modal-close" onClick={() => {
+                setShowAddMemberModal(false);
+                resetMemberForm();
+              }}>
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleAddMember}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Nom complet *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={memberForm.name}
+                    onChange={(e) => setMemberForm({...memberForm, name: e.target.value})}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Rôle *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Ex: Président, Secrétaire, Membre..."
+                    value={memberForm.role}
+                    onChange={(e) => setMemberForm({...memberForm, role: e.target.value})}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Département *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={memberForm.department}
+                    onChange={(e) => setMemberForm({...memberForm, department: e.target.value})}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Email *</label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    value={memberForm.email}
+                    onChange={(e) => setMemberForm({...memberForm, email: e.target.value})}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Téléphone</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={memberForm.phone}
+                    onChange={(e) => setMemberForm({...memberForm, phone: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => {
+                  setShowAddMemberModal(false);
+                  resetMemberForm();
+                }}>
+                  Annuler
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  <Save size={20} />
+                  Ajouter
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Meeting Modal */}
+      {showEditModal && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Modifier la Réunion</h2>
+              <button className="modal-close" onClick={() => {
+                setShowEditModal(false);
+                resetMeetingForm();
+              }}>
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleEditMeeting}>
+              <div className="modal-body">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Date *</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={meetingForm.date}
+                      onChange={(e) => setMeetingForm({...meetingForm, date: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Heure *</label>
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={meetingForm.time}
+                      onChange={(e) => setMeetingForm({...meetingForm, time: e.target.value})}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Type de réunion *</label>
+                  <select
+                    className="form-input"
+                    value={meetingForm.type}
+                    onChange={(e) => setMeetingForm({...meetingForm, type: e.target.value})}
+                    required
+                  >
+                    <option value="Commission Scientifique">Commission Scientifique</option>
+                    <option value="Commission HU">Commission HU</option>
+                    <option value="Réunion Extraordinaire">Réunion Extraordinaire</option>
+                    <option value="Jury de Soutenance">Jury de Soutenance</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Participants</label>
+                  <textarea
+                    className="form-input"
+                    rows="3"
+                    placeholder="Entrez les noms des participants, séparés par des virgules"
+                    value={meetingForm.attendees}
+                    onChange={(e) => setMeetingForm({...meetingForm, attendees: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Décisions prises</label>
+                  <textarea
+                    className="form-input"
+                    rows="4"
+                    placeholder="Décrivez les décisions prises"
+                    value={meetingForm.decisions}
+                    onChange={(e) => setMeetingForm({...meetingForm, decisions: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Procès-verbal</label>
+                  <textarea
+                    className="form-input"
+                    rows="4"
+                    placeholder="Notes du procès-verbal"
+                    value={meetingForm.minutes}
+                    onChange={(e) => setMeetingForm({...meetingForm, minutes: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Statut</label>
+                  <select
+                    className="form-input"
+                    value={meetingForm.status}
+                    onChange={(e) => setMeetingForm({...meetingForm, status: e.target.value})}
+                  >
+                    <option value="Planifiée">Planifiée</option>
+                    <option value="En cours">En cours</option>
+                    <option value="Terminée">Terminée</option>
+                    <option value="Annulée">Annulée</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => {
+                  setShowEditModal(false);
+                  resetMeetingForm();
+                }}>
+                  Annuler
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  <Save size={20} />
+                  Enregistrer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Commission;modal-close" onClick={() => {
+                setShowAddMeetingModal(false);
+                resetMeetingForm();
+              }}>
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleAddMeeting}>
+              <div className="modal-body">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Date *</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={meetingForm.date}
+                      onChange={(e) => setMeetingForm({...meetingForm, date: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Heure *</label>
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={meetingForm.time}
+                      onChange={(e) => setMeetingForm({...meetingForm, time: e.target.value})}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Type de réunion *</label>
+                  <select
+                    className="form-input"
+                    value={meetingForm.type}
+                    onChange={(e) => setMeetingForm({...meetingForm, type: e.target.value})}
+                    required
+                  >
+                    <option value="Commission Scientifique">Commission Scientifique</option>
+                    <option value="Commission HU">Commission HU</option>
+                    <option value="Réunion Extraordinaire">Réunion Extraordinaire</option>
                     <option value="Assemblée Générale">Assemblée Générale</option>
                   </select>
                 </div>

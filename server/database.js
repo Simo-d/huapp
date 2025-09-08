@@ -195,6 +195,33 @@ const insertSampleData = () => {
             Object.values(candidate));
   });
 
+  // Sample applications
+  const applications = [
+    {
+      candidate_id: 1,
+      submission_date: '2025-01-10',
+      status: 'En cours',
+      current_stage: 'Évaluation Rapporteurs',
+      progress: 50,
+      notes: 'Dossier complet, en cours dévaluation par les rapporteurs'
+    },
+    {
+      candidate_id: 2,
+      submission_date: '2025-01-15',
+      status: 'En attente',
+      current_stage: 'Vérification Documents',
+      progress: 25,
+      notes: 'En attente de documents supplémentaires'
+    }
+  ];
+
+  applications.forEach(application => {
+    db.run(`INSERT OR IGNORE INTO applications 
+            (candidate_id, submission_date, status, current_stage, progress, notes)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+            Object.values(application));
+  });
+
   // Sample rapporteurs
   const rapporteurs = [
     {
@@ -293,6 +320,63 @@ const insertSampleData = () => {
             (date, time, type, status, attendees, decisions, minutes)
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
             Object.values(meeting));
+  });
+
+  // Sample evaluations and reports
+  const evaluations = [
+    {
+      application_id: 1,
+      evaluator_id: 1,
+      evaluator_name: 'Pr. Rachid Alami',
+      score: 85,
+      comments: JSON.stringify({
+        strengths: 'Excellente maîtrise du sujet, publications de qualité',
+        weaknesses: 'Quelques aspects théoriques à approfondir',
+        recommendation: 'Très favorable',
+        generalComments: 'Candidat très prometteur avec un excellent potentiel de recherche'
+      }),
+      evaluation_date: '2025-02-01',
+      status: 'Terminé'
+    },
+    {
+      application_id: 1,
+      evaluator_id: 2,
+      evaluator_name: 'Pr. Leila Benali',
+      score: null,
+      comments: JSON.stringify({
+        strengths: '',
+        weaknesses: '',
+        recommendation: '',
+        generalComments: 'En attente dévaluation'
+      }),
+      evaluation_date: '2025-02-15',
+      status: 'En cours'
+    }
+  ];
+
+  evaluations.forEach(evaluation => {
+    db.run(`INSERT OR IGNORE INTO evaluations 
+            (application_id, evaluator_id, evaluator_name, score, comments, evaluation_date, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            Object.values(evaluation));
+  });
+
+  // Sample reports
+  const reports = [
+    {
+      application_id: 1,
+      rapporteur_id: 1,
+      submission_date: '2025-02-01',
+      content: 'Après examen approfondi du dossier du candidat, je recommande fortement son admission à l\'Habilitation Universitaire. Le candidat a démontré une excellente maîtrise de son domaine avec des publications de haute qualité dans des revues internationales.',
+      recommendation: 'Favorable'
+    }
+  ];
+
+  reports.forEach(report => {
+    db.run(`INSERT OR IGNORE INTO reports 
+            (application_id, rapporteur_id, submission_date, content, recommendation)
+            VALUES (?, ?, ?, ?, ?)`,
+            Object.values(report));
   });
 
   console.log('Sample data inserted');
