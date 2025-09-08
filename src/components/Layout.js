@@ -1,127 +1,142 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import {
-  Home,
-  Users,
-  FileText,
-  FolderOpen,
-  UserCheck,
-  ClipboardCheck,
-  UserPlus,
-  Calendar,
-  BarChart3,
+import { 
+  Home, 
+  Users, 
+  FileText, 
+  Folder, 
+  Calendar, 
+  Award, 
+  ClipboardCheck, 
+  UserCheck, 
+  Shield, 
   Settings,
   LogOut,
   Menu,
   X,
   ChevronDown
 } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import '../styles/design-system.css';
 import './Layout.css';
 
 const Layout = ({ children, user, onLogout }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
-  const menuItems = [
-    { path: '/', label: 'Tableau de bord', icon: Home },
-    { path: '/candidates', label: 'Candidats', icon: Users },
-    { path: '/applications', label: 'Candidatures', icon: FileText },
-    { path: '/documents', label: 'Documents', icon: FolderOpen },
-    { path: '/commission', label: 'Commission', icon: UserCheck },
-    { path: '/evaluation', label: 'Évaluation', icon: ClipboardCheck },
-    { path: '/rapporteurs', label: 'Rapporteurs', icon: UserPlus },
-    { path: '/defense', label: 'Soutenances', icon: Calendar },
-    { path: '/reports', label: 'Rapports', icon: BarChart3 },
-    { path: '/settings', label: 'Paramètres', icon: Settings }
+  const navigation = [
+    { name: 'Tableau de Bord', href: '/', icon: Home },
+    { name: 'Candidats', href: '/candidates', icon: Users },
+    { name: 'Candidatures', href: '/applications', icon: FileText },
+    { name: 'Documents', href: '/documents', icon: Folder },
+    { name: 'Commission', href: '/commission', icon: Shield },
+    { name: 'Évaluation', href: '/evaluation', icon: ClipboardCheck },
+    { name: 'Rapporteurs', href: '/rapporteurs', icon: UserCheck },
+    { name: 'Soutenances', href: '/defense', icon: Award },
+    { name: 'Rapports', href: '/reports', icon: Calendar },
+    { name: 'Paramètres', href: '/settings', icon: Settings }
   ];
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => {
+    return location.pathname === path;
+  };
 
   return (
-    <div className="app-layout">
+    <div className="app-container">
       {/* Sidebar */}
-      <aside className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2 className="sidebar-logo">HU System</h2>
-          <button 
-            className="sidebar-toggle desktop-hidden"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            <X size={24} />
-          </button>
+          <div className="logo-container">
+            {/* Logo placeholder - Add your FPO logo here */}
+            <img 
+              src="/fpo-logo.png" 
+              alt="FPO Logo" 
+              className="logo-image"
+              onError={(e) => {
+                // Fallback if logo doesn't exist
+                e.target.style.display = 'none';
+              }}
+            />
+            <div className="institution-name">
+              <span className="institution-primary">FPO</span>
+              <span className="institution-secondary">Système HU</span>
+            </div>
+          </div>
         </div>
-        
+
         <nav className="sidebar-nav">
-          {menuItems.map((item) => {
+          {navigation.map((item) => {
             const Icon = item.icon;
             return (
               <Link
-                key={item.path}
-                to={item.path}
-                className={`nav-item ${isActive(item.path) ? 'nav-item-active' : ''}`}
+                key={item.name}
+                to={item.href}
+                className={`nav-item ${isActive(item.href) ? 'active' : ''}`}
                 onClick={() => setSidebarOpen(false)}
               >
-                <Icon size={20} />
-                <span>{item.label}</span>
+                <Icon className="nav-icon" size={20} />
+                <span>{item.name}</span>
               </Link>
             );
           })}
         </nav>
 
         <div className="sidebar-footer">
-          <button className="logout-btn" onClick={onLogout}>
-            <LogOut size={20} />
+          <button className="nav-item logout-btn" onClick={onLogout}>
+            <LogOut className="nav-icon" size={20} />
             <span>Déconnexion</span>
           </button>
         </div>
       </aside>
 
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div 
-          className="sidebar-overlay"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Main Content Area */}
-      <div className="main-wrapper">
-        {/* Header */}
-        <header className="header">
+      {/* Main Content */}
+      <div className="main-content">
+        {/* Top Header */}
+        <header className="top-header">
           <button 
-            className="sidebar-toggle mobile-only"
+            className="mobile-menu-btn"
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
-            <Menu size={24} />
+            {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
 
           <div className="header-title">
-            <h1>Système de Gestion HU - FPO</h1>
+            <h1>Gestion HU - Faculté Polydisciplinaire d'Ouarzazate</h1>
           </div>
 
           <div className="header-actions">
             <div className="user-menu">
               <button 
-                className="user-menu-trigger"
-                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="user-menu-btn"
+                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
               >
                 <div className="user-avatar">
-                  {user?.name?.charAt(0).toUpperCase() || 'U'}
+                  {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
                 </div>
-                <span className="user-name">{user?.name || 'Utilisateur'}</span>
+                <div className="user-info">
+                  <span className="user-name">{user?.name || 'Utilisateur'}</span>
+                  <span className="user-role">{user?.role || 'Administrateur'}</span>
+                </div>
                 <ChevronDown size={16} />
               </button>
 
-              {dropdownOpen && (
-                <div className="user-dropdown">
+              {profileDropdownOpen && (
+                <div className="dropdown-menu">
                   <div className="dropdown-header">
-                    <p className="dropdown-name">{user?.name}</p>
-                    <p className="dropdown-email">{user?.email}</p>
-                    <p className="dropdown-role">{user?.role}</p>
+                    <div className="user-avatar large">
+                      {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <div>
+                      <div className="user-name">{user?.name || 'Utilisateur'}</div>
+                      <div className="user-email">{user?.email || 'email@fpo.ma'}</div>
+                    </div>
                   </div>
-                  <div className="dropdown-divider" />
-                  <button className="dropdown-item" onClick={onLogout}>
+                  <div className="dropdown-divider"></div>
+                  <Link to="/settings" className="dropdown-item">
+                    <Settings size={16} />
+                    Paramètres
+                  </Link>
+                  <button className="dropdown-item danger" onClick={onLogout}>
                     <LogOut size={16} />
                     Déconnexion
                   </button>
@@ -132,10 +147,32 @@ const Layout = ({ children, user, onLogout }) => {
         </header>
 
         {/* Page Content */}
-        <main className="main-content">
+        <main className="page-content">
           {children}
         </main>
+
+        {/* Footer */}
+        <footer className="app-footer">
+          <div className="footer-content">
+            <div className="footer-section">
+              <h4>Faculté Polydisciplinaire d'Ouarzazate</h4>
+              <p>Système de Gestion des Habilitations Universitaires</p>
+            </div>
+            <div className="footer-section">
+              <p className="footer-text">© 2024 FPO - Tous droits réservés</p>
+              <p className="footer-text">Université Ibn Zohr</p>
+            </div>
+          </div>
+        </footer>
       </div>
+
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="sidebar-overlay" 
+          onClick={() => setSidebarOpen(false)}
+        ></div>
+      )}
     </div>
   );
 };

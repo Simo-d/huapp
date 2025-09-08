@@ -13,6 +13,7 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import ApplicationForm from './pages/ApplicationForm';
+import './styles/design-system.css';
 import './App.css';
 
 function App() {

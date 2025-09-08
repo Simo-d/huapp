@@ -1,1068 +1,641 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Calendar,
-  Clock,
   Users,
   Plus,
   Edit,
   Trash2,
-  X,
-  Save,
-  FileText,
-  CheckCircle,
-  AlertCircle,
-  Info,
-  User,
+  Search,
+  Filter,
+  Download,
   Mail,
   Phone,
-  Briefcase
+  Award,
+  Briefcase,
+  Calendar,
+  X,
+  Save,
+  UserCheck,
+  Shield,
+  Star,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  MoreVertical
 } from 'lucide-react';
 import api from '../utils/api';
-import './pages.css';
+import '../styles/design-system.css';
+import './Commission.css';
 
 const Commission = () => {
-  const [meetings, setMeetings] = useState([]);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAddMeetingModal, setShowAddMeetingModal] = useState(false);
-  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [activeTab, setActiveTab] = useState('meetings');
-  const [meetingForm, setMeetingForm] = useState({
-    date: '',
-    time: '',
-    type: 'Commission Scientifique',
-    status: 'Planifiée',
-    attendees: '',
-    decisions: '',
-    minutes: ''
-  });
-  const [memberForm, setMemberForm] = useState({
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [showModal, setShowModal] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [expandedRow, setExpandedRow] = useState(null);
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [showActions, setShowActions] = useState(null);
+  
+  const [formData, setFormData] = useState({
     name: '',
-    role: '',
-    department: '',
     email: '',
-    phone: ''
+    phone: '',
+    role: '',
+    institution: '',
+    department: '',
+    specialization: ''
   });
 
   useEffect(() => {
-    loadData();
+    loadMembers();
   }, []);
 
-  const loadData = async () => {
+  const loadMembers = async () => {
     try {
       setLoading(true);
-      const [meetingsRes, membersRes] = await Promise.all([
-        api.get('/meetings'),
-        api.get('/commission-members')
-      ]);
-      setMeetings(meetingsRes.data || []);
-      setMembers(membersRes.data || []);
+      const response = await api.get('/commission-members');
+      setMembers(response.data || []);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading members:', error);
+      setMembers([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddMeeting = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/meetings', meetingForm);
-      alert('Réunion planifiée avec succès');
-      setShowAddMeetingModal(false);
-      resetMeetingForm();
-      loadData();
-    } catch (error) {
-      console.error('Error adding meeting:', error);
-      alert('Erreur lors de la planification de la réunion');
-    }
-  };
-
-  const handleAddMember = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post('/commission-members', memberForm);
-      alert('Membre ajouté avec succès');
-      setShowAddMemberModal(false);
-      resetMemberForm();
-      loadData();
-    } catch (error) {
-      console.error('Error adding member:', error);
-      alert('Erreur lors de l\'ajout du membre');
-    }
-  };
-
-  const handleEditMeeting = async (e) => {
-    e.preventDefault();
-    try {
-      await api.put(`/meetings/${selectedItem.id}`, meetingForm);
-      alert('Réunion modifiée avec succès');
-      setShowEditModal(false);
-      resetMeetingForm();
-      loadData();
-    } catch (error) {
-      console.error('Error updating meeting:', error);
-      alert('Erreur lors de la modification de la réunion');
-    }
-  };
-
-  const handleDeleteMeeting = async (id) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette réunion?')) {
-      try {
-        await api.delete(`/meetings/${id}`);
-        alert('Réunion supprimée avec succès');
-        loadData();
-      } catch (error) {
-        console.error('Error deleting meeting:', error);
-        alert('Erreur lors de la suppression de la réunion');
+      if (selectedMember) {
+        await api.put(`/commission-members/${selectedMember.id}`, formData);
+      } else {
+        await api.post('/commission-members', formData);
       }
+      await loadMembers();
+      setShowModal(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error saving member:', error);
+      alert('Erreur lors de l\'enregistrement');
     }
   };
 
-  const handleDeleteMember = async (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce membre?')) {
       try {
         await api.delete(`/commission-members/${id}`);
-        alert('Membre supprimé avec succès');
-        loadData();
+        await loadMembers();
       } catch (error) {
         console.error('Error deleting member:', error);
-        alert('Erreur lors de la suppression du membre');
+        alert('Erreur lors de la suppression');
       }
     }
   };
 
-  const handleGeneratePV = async (meetingId) => {
-    try {
-      const response = await api.post(`/generation/pv/${meetingId}`, {
-        decisions: meetings.find(m => m.id === meetingId)?.decisions?.split('\n') || []
-      });
-      if (response.data.success) {
-        alert('PV généré avec succès');
-        window.open(`http://localhost:5000${response.data.path}`, '_blank');
-      }
-    } catch (error) {
-      console.error('Error generating PV:', error);
-      alert('Erreur lors de la génération du PV');
-    }
-  };
-
-  const openEditMeetingModal = (meeting) => {
-    setSelectedItem(meeting);
-    setMeetingForm({
-      date: meeting.date,
-      time: meeting.time,
-      type: meeting.type,
-      status: meeting.status,
-      attendees: meeting.attendees || '',
-      decisions: meeting.decisions || '',
-      minutes: meeting.minutes || ''
+  const handleEdit = (member) => {
+    setSelectedMember(member);
+    setFormData({
+      name: member.name,
+      email: member.email,
+      phone: member.phone || '',
+      role: member.role,
+      institution: member.institution || '',
+      department: member.department || '',
+      specialization: member.specialization || ''
     });
-    setShowEditModal(true);
+    setShowModal(true);
+    setShowActions(null);
   };
 
-  const resetMeetingForm = () => {
-    setMeetingForm({
-      date: '',
-      time: '',
-      type: 'Commission Scientifique',
-      status: 'Planifiée',
-      attendees: '',
-      decisions: '',
-      minutes: ''
-    });
-    setSelectedItem(null);
-  };
-
-  const resetMemberForm = () => {
-    setMemberForm({
+  const resetForm = () => {
+    setFormData({
       name: '',
-      role: '',
-      department: '',
       email: '',
-      phone: ''
+      phone: '',
+      role: '',
+      institution: '',
+      department: '',
+      specialization: ''
     });
+    setSelectedMember(null);
   };
 
-  const getStatusBadgeClass = (status) => {
-    switch (status) {
-      case 'Planifiée': return 'badge-info';
-      case 'En cours': return 'badge-warning';
-      case 'Terminée': return 'badge-success';
-      case 'Annulée': return 'badge-danger';
-      default: return 'badge-secondary';
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const handleSelectMember = (id) => {
+    setSelectedMembers(prev => 
+      prev.includes(id) 
+        ? prev.filter(memberId => memberId !== id)
+        : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedMembers.length === filteredMembers.length) {
+      setSelectedMembers([]);
+    } else {
+      setSelectedMembers(filteredMembers.map(m => m.id));
     }
   };
 
-  const upcomingMeetings = meetings
-    .filter(m => m.status === 'Planifiée' && new Date(m.date) >= new Date())
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .slice(0, 3);
+  const handleBulkAction = async (action) => {
+    if (selectedMembers.length === 0) {
+      alert('Veuillez sélectionner au moins un membre');
+      return;
+    }
+
+    switch(action) {
+      case 'delete':
+        if (window.confirm(`Supprimer ${selectedMembers.length} membre(s)?`)) {
+          // Bulk delete logic here
+          setSelectedMembers([]);
+        }
+        break;
+      case 'export':
+        // Export logic here
+        console.log('Exporting members:', selectedMembers);
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Filter and sort members
+  const filteredMembers = members.filter(member => {
+    const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         member.institution?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = !filterRole || member.role === filterRole;
+    return matchesSearch && matchesRole;
+  });
+
+  const sortedMembers = [...filteredMembers].sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    
+    const aValue = a[sortConfig.key] || '';
+    const bValue = b[sortConfig.key] || '';
+    
+    if (sortConfig.direction === 'asc') {
+      return aValue > bValue ? 1 : -1;
+    }
+    return aValue < bValue ? 1 : -1;
+  });
+
+  const getRoleBadgeClass = (role) => {
+    switch(role) {
+      case 'Président': return 'badge-president';
+      case 'Vice-Président': return 'badge-vice-president';
+      case 'Rapporteur': return 'badge-rapporteur';
+      case 'Membre': return 'badge-member';
+      default: return 'badge-default';
+    }
+  };
+
+  const getRoleIcon = (role) => {
+    switch(role) {
+      case 'Président': return <Shield size={14} />;
+      case 'Vice-Président': return <Star size={14} />;
+      case 'Rapporteur': return <Award size={14} />;
+      default: return <UserCheck size={14} />;
+    }
+  };
 
   if (loading) {
     return (
       <div className="loading-container">
-        <div className="loading-spinner">Chargement...</div>
+        <div className="loading-spinner"></div>
+        <p>Chargement des membres...</p>
       </div>
     );
   }
 
   return (
     <div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Commission Scientifique</h1>
-          <p className="page-subtitle">Gérer les réunions et les membres de la commission</p>
-        </div>
-        <div className="header-actions">
-          {activeTab === 'meetings' ? (
-            <button className="btn btn-primary" onClick={() => setShowAddMeetingModal(true)}>
-              <Plus size={20} />
-              Planifier Réunion
-            </button>
-          ) : (
-            <button className="btn btn-primary" onClick={() => setShowAddMemberModal(true)}>
-              <Plus size={20} />
-              Ajouter Membre
-            </button>
-          )}
+      {/* Page Header */}
+      <div className="page-header-enhanced">
+        <div className="page-header-content">
+          <div>
+            <h1 className="page-title">Commission HU</h1>
+            <p className="page-subtitle">Gestion des membres de la commission d'habilitation</p>
+          </div>
+          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+            <Plus size={20} />
+            Nouveau Membre
+          </button>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-icon bg-blue">
-            <Calendar size={24} />
-          </div>
-          <div className="stat-content">
-            <div className="stat-value">{meetings.filter(m => m.status === 'Planifiée').length}</div>
-            <div className="stat-label">Réunions Planifiées</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon bg-green">
+          <div className="stat-icon">
             <Users size={24} />
           </div>
           <div className="stat-content">
             <div className="stat-value">{members.length}</div>
-            <div className="stat-label">Membres Commission</div>
+            <div className="stat-label">Total Membres</div>
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon bg-purple">
-            <FileText size={24} />
+          <div className="stat-icon">
+            <Shield size={24} />
           </div>
           <div className="stat-content">
-            <div className="stat-value">{meetings.filter(m => m.status === 'Terminée').length}</div>
-            <div className="stat-label">PV Disponibles</div>
+            <div className="stat-value">
+              {members.filter(m => m.role === 'Président').length}
+            </div>
+            <div className="stat-label">Présidents</div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon">
+            <Award size={24} />
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">
+              {members.filter(m => m.role === 'Rapporteur').length}
+            </div>
+            <div className="stat-label">Rapporteurs</div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon">
+            <Briefcase size={24} />
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">
+              {[...new Set(members.map(m => m.institution))].length}
+            </div>
+            <div className="stat-label">Institutions</div>
           </div>
         </div>
       </div>
 
-      {/* Upcoming Meetings */}
-      {upcomingMeetings.length > 0 && (
-        <div className="upcoming-section">
-          <h3 className="section-title">Prochaines Réunions</h3>
-          <div className="upcoming-grid">
-            {upcomingMeetings.map(meeting => (
-              <div key={meeting.id} className="upcoming-card">
-                <div className="upcoming-header">
-                  <span className="upcoming-type">{meeting.type}</span>
-                  <span className={`badge ${getStatusBadgeClass(meeting.status)}`}>
-                    {meeting.status}
-                  </span>
-                </div>
-                <div className="upcoming-body">
-                  <div className="upcoming-date">
-                    <Calendar size={16} />
-                    {new Date(meeting.date).toLocaleDateString('fr-FR')}
-                  </div>
-                  <div className="upcoming-time">
-                    <Clock size={16} />
-                    {meeting.time}
-                  </div>
-                </div>
-              </div>
-            ))}
+      {/* Table Controls */}
+      <div className="table-controls">
+        <div className="controls-left">
+          <div className="search-box">
+            <Search size={20} />
+            <input
+              type="text"
+              placeholder="Rechercher par nom, email ou institution..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+          </div>
+          <div className="filter-dropdown">
+            <Filter size={20} />
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="filter-select"
+            >
+              <option value="">Tous les rôles</option>
+              <option value="Président">Président</option>
+              <option value="Vice-Président">Vice-Président</option>
+              <option value="Rapporteur">Rapporteur</option>
+              <option value="Membre">Membre</option>
+            </select>
           </div>
         </div>
-      )}
-
-      {/* Tabs */}
-      <div className="tabs">
-        <button
-          className={`tab ${activeTab === 'meetings' ? 'active' : ''}`}
-          onClick={() => setActiveTab('meetings')}
-        >
-          <Calendar size={18} />
-          Réunions ({meetings.length})
-        </button>
-        <button
-          className={`tab ${activeTab === 'members' ? 'active' : ''}`}
-          onClick={() => setActiveTab('members')}
-        >
-          <Users size={18} />
-          Membres ({members.length})
-        </button>
+        
+        <div className="controls-right">
+          {selectedMembers.length > 0 && (
+            <div className="bulk-actions">
+              <span className="selected-count">{selectedMembers.length} sélectionné(s)</span>
+              <button 
+                className="btn btn-secondary btn-sm"
+                onClick={() => handleBulkAction('export')}
+              >
+                <Download size={16} />
+                Exporter
+              </button>
+              <button 
+                className="btn btn-danger btn-sm"
+                onClick={() => handleBulkAction('delete')}
+              >
+                <Trash2 size={16} />
+                Supprimer
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Content based on active tab */}
-      {activeTab === 'meetings' ? (
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
+      {/* Enhanced Table */}
+      <div className="table-wrapper">
+        <table className="commission-table">
+          <thead>
+            <tr>
+              <th className="checkbox-column">
+                <input
+                  type="checkbox"
+                  checked={selectedMembers.length === filteredMembers.length && filteredMembers.length > 0}
+                  onChange={handleSelectAll}
+                  className="table-checkbox"
+                />
+              </th>
+              <th onClick={() => handleSort('name')} className="sortable">
+                <div className="th-content">
+                  Nom
+                  {sortConfig.key === 'name' && (
+                    sortConfig.direction === 'asc' ? 
+                      <ChevronUp size={16} /> : 
+                      <ChevronDown size={16} />
+                  )}
+                </div>
+              </th>
+              <th onClick={() => handleSort('role')} className="sortable">
+                <div className="th-content">
+                  Rôle
+                  {sortConfig.key === 'role' && (
+                    sortConfig.direction === 'asc' ? 
+                      <ChevronUp size={16} /> : 
+                      <ChevronDown size={16} />
+                  )}
+                </div>
+              </th>
+              <th onClick={() => handleSort('institution')} className="sortable">
+                <div className="th-content">
+                  Institution
+                  {sortConfig.key === 'institution' && (
+                    sortConfig.direction === 'asc' ? 
+                      <ChevronUp size={16} /> : 
+                      <ChevronDown size={16} />
+                  )}
+                </div>
+              </th>
+              <th>Contact</th>
+              <th>Spécialisation</th>
+              <th className="actions-column">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedMembers.length === 0 ? (
               <tr>
-                <th>Date</th>
-                <th>Heure</th>
-                <th>Type</th>
-                <th>Participants</th>
-                <th>Statut</th>
-                <th>PV</th>
-                <th>Actions</th>
+                <td colSpan="7" className="empty-state">
+                  <div className="empty-message">
+                    <Users size={48} />
+                    <p>Aucun membre trouvé</p>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {meetings.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="text-center">
-                    Aucune réunion trouvée
-                  </td>
-                </tr>
-              ) : (
-                meetings.map(meeting => (
-                  <tr key={meeting.id}>
+            ) : (
+              sortedMembers.map((member) => (
+                <React.Fragment key={member.id}>
+                  <tr className={`table-row ${selectedMembers.includes(member.id) ? 'selected' : ''}`}>
+                    <td className="checkbox-column">
+                      <input
+                        type="checkbox"
+                        checked={selectedMembers.includes(member.id)}
+                        onChange={() => handleSelectMember(member.id)}
+                        className="table-checkbox"
+                      />
+                    </td>
                     <td>
-                      <div className="date-display">
-                        <Calendar size={16} />
-                        {new Date(meeting.date).toLocaleDateString('fr-FR')}
+                      <div className="member-info">
+                        <div className="member-avatar">
+                          {member.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                        </div>
+                        <div>
+                          <div className="member-name">{member.name}</div>
+                          <div className="member-department">{member.department}</div>
+                        </div>
                       </div>
                     </td>
                     <td>
-                      <div className="time-display">
-                        <Clock size={16} />
-                        {meeting.time}
-                      </div>
-                    </td>
-                    <td>{meeting.type}</td>
-                    <td>
-                      <div className="attendees-list">
-                        {meeting.attendees ? (
-                          meeting.attendees.split(',').slice(0, 2).map((att, idx) => (
-                            <span key={idx} className="attendee-chip">
-                              {att.trim()}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-muted">Non défini</span>
-                        )}
-                        {meeting.attendees && meeting.attendees.split(',').length > 2 && (
-                          <span className="attendee-more">
-                            +{meeting.attendees.split(',').length - 2}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`badge ${getStatusBadgeClass(meeting.status)}`}>
-                        {meeting.status}
+                      <span className={`role-badge ${getRoleBadgeClass(member.role)}`}>
+                        {getRoleIcon(member.role)}
+                        {member.role}
                       </span>
                     </td>
                     <td>
-                      {meeting.status === 'Terminée' ? (
-                        <button
-                          className="btn-icon success"
-                          onClick={() => handleGeneratePV(meeting.id)}
-                          title="Générer PV"
-                        >
-                          <FileText size={18} />
-                        </button>
-                      ) : (
-                        <span className="text-muted">-</span>
-                      )}
+                      <div className="institution-cell">
+                        <Briefcase size={14} />
+                        {member.institution || 'Non spécifié'}
+                      </div>
                     </td>
                     <td>
+                      <div className="contact-info">
+                        <div className="contact-item">
+                          <Mail size={14} />
+                          <a href={`mailto:${member.email}`}>{member.email}</a>
+                        </div>
+                        {member.phone && (
+                          <div className="contact-item">
+                            <Phone size={14} />
+                            {member.phone}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="specialization-cell">
+                        {member.specialization || 'Non spécifiée'}
+                      </div>
+                    </td>
+                    <td className="actions-column">
                       <div className="action-buttons">
                         <button
-                          className="btn-icon"
-                          onClick={() => openEditMeetingModal(meeting)}
+                          className="btn-action"
+                          onClick={() => setExpandedRow(expandedRow === member.id ? null : member.id)}
+                          title="Voir détails"
+                        >
+                          <Eye size={18} />
+                        </button>
+                        <button
+                          className="btn-action"
+                          onClick={() => handleEdit(member)}
                           title="Modifier"
                         >
                           <Edit size={18} />
                         </button>
                         <button
-                          className="btn-icon danger"
-                          onClick={() => handleDeleteMeeting(meeting.id)}
+                          className="btn-action danger"
+                          onClick={() => handleDelete(member.id)}
                           title="Supprimer"
                         >
                           <Trash2 size={18} />
                         </button>
+                        <div className="more-actions">
+                          <button
+                            className="btn-action"
+                            onClick={() => setShowActions(showActions === member.id ? null : member.id)}
+                          >
+                            <MoreVertical size={18} />
+                          </button>
+                          {showActions === member.id && (
+                            <div className="dropdown-actions">
+                              <button onClick={() => console.log('Email', member.id)}>
+                                <Mail size={16} />
+                                Envoyer Email
+                              </button>
+                              <button onClick={() => console.log('Export', member.id)}>
+                                <Download size={16} />
+                                Exporter
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="members-grid">
-          {members.map(member => (
-            <div key={member.id} className="member-card">
-              <div className="member-header">
-                <div className="member-avatar">
-                  {member.name.split(' ').map(n => n[0]).join('')}
-                </div>
-                <button
-                  className="btn-icon danger small"
-                  onClick={() => handleDeleteMember(member.id)}
-                  title="Supprimer"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-              <div className="member-body">
-                <h3 className="member-name">{member.name}</h3>
-                <p className="member-role">{member.role}</p>
-                <div className="member-info">
-                  <div className="info-item">
-                    <Briefcase size={14} />
-                    {member.department}
-                  </div>
-                  <div className="info-item">
-                    <Mail size={14} />
-                    <a href={`mailto:${member.email}`}>{member.email}</a>
-                  </div>
-                  {member.phone && (
-                    <div className="info-item">
-                      <Phone size={14} />
-                      {member.phone}
-                    </div>
+                  {expandedRow === member.id && (
+                    <tr className="expanded-row">
+                      <td colSpan="7">
+                        <div className="expanded-content">
+                          <div className="expanded-section">
+                            <h4>Informations détaillées</h4>
+                            <div className="detail-grid">
+                              <div className="detail-item">
+                                <span className="detail-label">Date d'ajout:</span>
+                                <span className="detail-value">
+                                  {new Date(member.created_at || Date.now()).toLocaleDateString('fr-FR')}
+                                </span>
+                              </div>
+                              <div className="detail-item">
+                                <span className="detail-label">Département:</span>
+                                <span className="detail-value">{member.department || 'Non spécifié'}</span>
+                              </div>
+                              <div className="detail-item">
+                                <span className="detail-label">Spécialisation:</span>
+                                <span className="detail-value">{member.specialization || 'Non spécifiée'}</span>
+                              </div>
+                              <div className="detail-item">
+                                <span className="detail-label">Statut:</span>
+                                <span className="detail-value">
+                                  <span className="status-badge active">Actif</span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
                   )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+                </React.Fragment>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-      {/* Add Meeting Modal */}
-      {showAddMeetingModal && (
-        <div className="modal-overlay" onClick={() => setShowAddMeetingModal(false)}>
+      {/* Modal */}
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Planifier une Réunion</h2>
+              <h2>{selectedMember ? 'Modifier le Membre' : 'Nouveau Membre'}</h2>
               <button className="modal-close" onClick={() => {
-                setShowAddMeetingModal(false);
-                resetMeetingForm();
+                setShowModal(false);
+                resetForm();
               }}>
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleAddMeeting}>
+            <form onSubmit={handleSubmit}>
               <div className="modal-body">
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Date *</label>
+                    <label className="form-label">Nom complet *</label>
                     <input
-                      type="date"
+                      type="text"
                       className="form-input"
-                      value={meetingForm.date}
-                      onChange={(e) => setMeetingForm({...meetingForm, date: e.target.value})}
+                      value={formData.name}
+                      onChange={(e) => setFormData({...formData, name: e.target.value})}
                       required
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Heure *</label>
+                    <label className="form-label">Email *</label>
                     <input
-                      type="time"
+                      type="email"
                       className="form-input"
-                      value={meetingForm.time}
-                      onChange={(e) => setMeetingForm({...meetingForm, time: e.target.value})}
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
                       required
                     />
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Type de réunion *</label>
-                  <select
-                    className="form-input"
-                    value={meetingForm.type}
-                    onChange={(e) => setMeetingForm({...meetingForm, type: e.target.value})}
-                    required
-                  >
-                    <option value="Commission Scientifique">Commission Scientifique</option>
-                    <option value="Commission HU">Commission HU</option>
-                    <option value="Réunion Extraordinaire">Réunion Extraordinaire</option>
-                    <option value="Jury de Soutenance">Jury de Soutenance</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Participants</label>
-                  <textarea
-                    className="form-input"
-                    rows="3"
-                    placeholder="Entrez les noms des participants, séparés par des virgules"
-                    value={meetingForm.attendees}
-                    onChange={(e) => setMeetingForm({...meetingForm, attendees: e.target.value})}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Ordre du jour / Décisions</label>
-                  <textarea
-                    className="form-input"
-                    rows="4"
-                    placeholder="Décrivez l'ordre du jour ou les décisions prises"
-                    value={meetingForm.decisions}
-                    onChange={(e) => setMeetingForm({...meetingForm, decisions: e.target.value})}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Statut</label>
-                  <select
-                    className="form-input"
-                    value={meetingForm.status}
-                    onChange={(e) => setMeetingForm({...meetingForm, status: e.target.value})}
-                  >
-                    <option value="Planifiée">Planifiée</option>
-                    <option value="En cours">En cours</option>
-                    <option value="Terminée">Terminée</option>
-                    <option value="Annulée">Annulée</option>
-                  </select>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => {
-                  setShowAddMeetingModal(false);
-                  resetMeetingForm();
-                }}>
-                  Annuler
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  <Save size={20} />
-                  Planifier
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add Member Modal */}
-      {showAddMemberModal && (
-        <div className="modal-overlay" onClick={() => setShowAddMemberModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Ajouter un Membre</h2>
-              <button className="modal-close" onClick={() => {
-                setShowAddMemberModal(false);
-                resetMemberForm();
-              }}>
-                <X size={24} />
-              </button>
-            </div>
-            <form onSubmit={handleAddMember}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Nom complet *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={memberForm.name}
-                    onChange={(e) => setMemberForm({...memberForm, name: e.target.value})}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Rôle *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Ex: Président, Secrétaire, Membre..."
-                    value={memberForm.role}
-                    onChange={(e) => setMemberForm({...memberForm, role: e.target.value})}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Département *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={memberForm.department}
-                    onChange={(e) => setMemberForm({...memberForm, department: e.target.value})}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Email *</label>
-                  <input
-                    type="email"
-                    className="form-input"
-                    value={memberForm.email}
-                    onChange={(e) => setMemberForm({...memberForm, email: e.target.value})}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Téléphone</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={memberForm.phone}
-                    onChange={(e) => setMemberForm({...memberForm, phone: e.target.value})}
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => {
-                  setShowAddMemberModal(false);
-                  resetMemberForm();
-                }}>
-                  Annuler
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  <Save size={20} />
-                  Ajouter
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Meeting Modal */}
-      {showEditModal && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Modifier la Réunion</h2>
-              <button className="modal-close" onClick={() => {
-                setShowEditModal(false);
-                resetMeetingForm();
-              }}>
-                <X size={24} />
-              </button>
-            </div>
-            <form onSubmit={handleEditMeeting}>
-              <div className="modal-body">
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Date *</label>
+                    <label className="form-label">Téléphone</label>
                     <input
-                      type="date"
+                      type="tel"
                       className="form-input"
-                      value={meetingForm.date}
-                      onChange={(e) => setMeetingForm({...meetingForm, date: e.target.value})}
-                      required
+                      value={formData.phone}
+                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Heure *</label>
-                    <input
-                      type="time"
+                    <label className="form-label">Rôle *</label>
+                    <select
                       className="form-input"
-                      value={meetingForm.time}
-                      onChange={(e) => setMeetingForm({...meetingForm, time: e.target.value})}
+                      value={formData.role}
+                      onChange={(e) => setFormData({...formData, role: e.target.value})}
                       required
-                    />
+                    >
+                      <option value="">Sélectionner un rôle</option>
+                      <option value="Président">Président</option>
+                      <option value="Vice-Président">Vice-Président</option>
+                      <option value="Rapporteur">Rapporteur</option>
+                      <option value="Membre">Membre</option>
+                    </select>
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Type de réunion *</label>
-                  <select
-                    className="form-input"
-                    value={meetingForm.type}
-                    onChange={(e) => setMeetingForm({...meetingForm, type: e.target.value})}
-                    required
-                  >
-                    <option value="Commission Scientifique">Commission Scientifique</option>
-                    <option value="Commission HU">Commission HU</option>
-                    <option value="Réunion Extraordinaire">Réunion Extraordinaire</option>
-                    <option value="Jury de Soutenance">Jury de Soutenance</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Participants</label>
-                  <textarea
-                    className="form-input"
-                    rows="3"
-                    placeholder="Entrez les noms des participants, séparés par des virgules"
-                    value={meetingForm.attendees}
-                    onChange={(e) => setMeetingForm({...meetingForm, attendees: e.target.value})}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Décisions prises</label>
-                  <textarea
-                    className="form-input"
-                    rows="4"
-                    placeholder="Décrivez les décisions prises"
-                    value={meetingForm.decisions}
-                    onChange={(e) => setMeetingForm({...meetingForm, decisions: e.target.value})}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Procès-verbal</label>
-                  <textarea
-                    className="form-input"
-                    rows="4"
-                    placeholder="Notes du procès-verbal"
-                    value={meetingForm.minutes}
-                    onChange={(e) => setMeetingForm({...meetingForm, minutes: e.target.value})}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Statut</label>
-                  <select
-                    className="form-input"
-                    value={meetingForm.status}
-                    onChange={(e) => setMeetingForm({...meetingForm, status: e.target.value})}
-                  >
-                    <option value="Planifiée">Planifiée</option>
-                    <option value="En cours">En cours</option>
-                    <option value="Terminée">Terminée</option>
-                    <option value="Annulée">Annulée</option>
-                  </select>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => {
-                  setShowEditModal(false);
-                  resetMeetingForm();
-                }}>
-                  Annuler
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  <Save size={20} />
-                  Enregistrer
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default Commission;modal-close" onClick={() => {
-                setShowAddMeetingModal(false);
-                resetMeetingForm();
-              }}>
-                <X size={24} />
-              </button>
-            </div>
-            <form onSubmit={handleAddMeeting}>
-              <div className="modal-body">
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Date *</label>
+                    <label className="form-label">Institution</label>
                     <input
-                      type="date"
+                      type="text"
                       className="form-input"
-                      value={meetingForm.date}
-                      onChange={(e) => setMeetingForm({...meetingForm, date: e.target.value})}
-                      required
+                      value={formData.institution}
+                      onChange={(e) => setFormData({...formData, institution: e.target.value})}
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Heure *</label>
+                    <label className="form-label">Département</label>
                     <input
-                      type="time"
+                      type="text"
                       className="form-input"
-                      value={meetingForm.time}
-                      onChange={(e) => setMeetingForm({...meetingForm, time: e.target.value})}
-                      required
+                      value={formData.department}
+                      onChange={(e) => setFormData({...formData, department: e.target.value})}
                     />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Type de réunion *</label>
-                  <select
-                    className="form-input"
-                    value={meetingForm.type}
-                    onChange={(e) => setMeetingForm({...meetingForm, type: e.target.value})}
-                    required
-                  >
-                    <option value="Commission Scientifique">Commission Scientifique</option>
-                    <option value="Commission HU">Commission HU</option>
-                    <option value="Réunion Extraordinaire">Réunion Extraordinaire</option>
-                    <option value="Assemblée Générale">Assemblée Générale</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Participants</label>
-                  <textarea
-                    className="form-input"
-                    rows="3"
-                    placeholder="Liste des participants (séparés par des virgules)"
-                    value={meetingForm.attendees}
-                    onChange={(e) => setMeetingForm({...meetingForm, attendees: e.target.value})}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Ordre du jour / Décisions</label>
-                  <textarea
-                    className="form-input"
-                    rows="4"
-                    placeholder="Points à discuter ou décisions prises"
-                    value={meetingForm.decisions}
-                    onChange={(e) => setMeetingForm({...meetingForm, decisions: e.target.value})}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Statut</label>
-                  <select
-                    className="form-input"
-                    value={meetingForm.status}
-                    onChange={(e) => setMeetingForm({...meetingForm, status: e.target.value})}
-                  >
-                    <option value="Planifiée">Planifiée</option>
-                    <option value="En cours">En cours</option>
-                    <option value="Terminée">Terminée</option>
-                    <option value="Annulée">Annulée</option>
-                  </select>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => {
-                  setShowAddMeetingModal(false);
-                  resetMeetingForm();
-                }}>
-                  Annuler
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  <Save size={20} />
-                  Planifier
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add Member Modal */}
-      {showAddMemberModal && (
-        <div className="modal-overlay" onClick={() => setShowAddMemberModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Ajouter un Membre</h2>
-              <button className="modal-close" onClick={() => {
-                setShowAddMemberModal(false);
-                resetMemberForm();
-              }}>
-                <X size={24} />
-              </button>
-            </div>
-            <form onSubmit={handleAddMember}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Nom complet *</label>
+                  <label className="form-label">Spécialisation</label>
                   <input
                     type="text"
                     className="form-input"
-                    value={memberForm.name}
-                    onChange={(e) => setMemberForm({...memberForm, name: e.target.value})}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Rôle *</label>
-                  <select
-                    className="form-input"
-                    value={memberForm.role}
-                    onChange={(e) => setMemberForm({...memberForm, role: e.target.value})}
-                    required
-                  >
-                    <option value="">-- Sélectionner un rôle --</option>
-                    <option value="Président">Président</option>
-                    <option value="Vice-Président">Vice-Président</option>
-                    <option value="Secrétaire">Secrétaire</option>
-                    <option value="Membre">Membre</option>
-                    <option value="Rapporteur">Rapporteur</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Département *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={memberForm.department}
-                    onChange={(e) => setMemberForm({...memberForm, department: e.target.value})}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Email *</label>
-                  <input
-                    type="email"
-                    className="form-input"
-                    value={memberForm.email}
-                    onChange={(e) => setMemberForm({...memberForm, email: e.target.value})}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Téléphone</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={memberForm.phone}
-                    onChange={(e) => setMemberForm({...memberForm, phone: e.target.value})}
+                    value={formData.specialization}
+                    onChange={(e) => setFormData({...formData, specialization: e.target.value})}
+                    placeholder="Ex: Intelligence Artificielle, Réseaux..."
                   />
                 </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => {
-                  setShowAddMemberModal(false);
-                  resetMemberForm();
+                  setShowModal(false);
+                  resetForm();
                 }}>
                   Annuler
                 </button>
                 <button type="submit" className="btn btn-primary">
                   <Save size={20} />
-                  Ajouter
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Meeting Modal */}
-      {showEditModal && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Modifier la Réunion</h2>
-              <button className="modal-close" onClick={() => {
-                setShowEditModal(false);
-                resetMeetingForm();
-              }}>
-                <X size={24} />
-              </button>
-            </div>
-            <form onSubmit={handleEditMeeting}>
-              <div className="modal-body">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Date *</label>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={meetingForm.date}
-                      onChange={(e) => setMeetingForm({...meetingForm, date: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Heure *</label>
-                    <input
-                      type="time"
-                      className="form-input"
-                      value={meetingForm.time}
-                      onChange={(e) => setMeetingForm({...meetingForm, time: e.target.value})}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Type de réunion *</label>
-                  <select
-                    className="form-input"
-                    value={meetingForm.type}
-                    onChange={(e) => setMeetingForm({...meetingForm, type: e.target.value})}
-                    required
-                  >
-                    <option value="Commission Scientifique">Commission Scientifique</option>
-                    <option value="Commission HU">Commission HU</option>
-                    <option value="Réunion Extraordinaire">Réunion Extraordinaire</option>
-                    <option value="Assemblée Générale">Assemblée Générale</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Participants</label>
-                  <textarea
-                    className="form-input"
-                    rows="3"
-                    placeholder="Liste des participants (séparés par des virgules)"
-                    value={meetingForm.attendees}
-                    onChange={(e) => setMeetingForm({...meetingForm, attendees: e.target.value})}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Décisions prises</label>
-                  <textarea
-                    className="form-input"
-                    rows="4"
-                    placeholder="Décisions prises lors de la réunion"
-                    value={meetingForm.decisions}
-                    onChange={(e) => setMeetingForm({...meetingForm, decisions: e.target.value})}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Notes / PV</label>
-                  <textarea
-                    className="form-input"
-                    rows="3"
-                    placeholder="Notes ou procès-verbal"
-                    value={meetingForm.minutes}
-                    onChange={(e) => setMeetingForm({...meetingForm, minutes: e.target.value})}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Statut</label>
-                  <select
-                    className="form-input"
-                    value={meetingForm.status}
-                    onChange={(e) => setMeetingForm({...meetingForm, status: e.target.value})}
-                  >
-                    <option value="Planifiée">Planifiée</option>
-                    <option value="En cours">En cours</option>
-                    <option value="Terminée">Terminée</option>
-                    <option value="Annulée">Annulée</option>
-                  </select>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => {
-                  setShowEditModal(false);
-                  resetMeetingForm();
-                }}>
-                  Annuler
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  <Save size={20} />
-                  Enregistrer
+                  {selectedMember ? 'Modifier' : 'Ajouter'}
                 </button>
               </div>
             </form>
