@@ -6,3 +6,7 @@
 package-lock.json
 yarn.lock
 EVALUATION_GUIDE.md
+/report/*
+/report/**/*
+
+server/node_modules/

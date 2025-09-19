@@ -1,0 +1,94 @@
+# Guide de démarrage rapide – HU Management System
+
+## Prérequis
+- Node.js installé (version 14 ou supérieure)
+- Deux fenêtres de terminal/commande ouvertes (une pour le backend, une pour le frontend)
+
+---
+
+## 🔧 Installation initiale (à faire une seule fois)
+
+### Terminal 1 – Backend
+cd E:\GeniePot\aiprojects\huapp\server
+npm install
+
+### Terminal 2 – Frontend
+cd E:\GeniePot\aiprojects\huapp
+npm install
+
+---
+
+## ▶️ Lancement de l’application
+
+### Étape 1 – Démarrer le serveur backend (Terminal 1)
+cd E:\GeniePot\aiprojects\huapp\server
+node index.js
+
+Sortie attendue :
+🚀 Server is running on port 5000
+📡 API available at http://localhost:5000/api
+
+### Étape 2 – Démarrer le frontend React (Terminal 2)
+cd E:\GeniePot\aiprojects\huapp
+npm start
+
+👉 L’application s’ouvre automatiquement sur http://localhost:3000
+
+---
+
+## 👤 Connexion
+
+Compte admin par défaut :
+- Email : admin@fpo.ma
+- Mot de passe : admin123
+
+👉 Vous pouvez aussi créer un nouveau compte via "S'inscrire"
+
+---
+
+## ✅ Fonctionnalités disponibles
+1. Gestion des Candidats : ajout, modification, suppression, détails complets
+2. Gestion des Candidatures : création, mise à jour du statut, suivi, suppression
+3. Tableau de bord : statistiques en temps réel, graphiques, vue d’ensemble
+4. Authentification : connexion sécurisée, inscription, gestion de session
+
+---
+
+## 🗂️ Base de données
+- SQLite est créée automatiquement au premier démarrage :
+  E:\GeniePot\aiprojects\huapp\server\hu_database.db
+
+---
+
+## ⚠️ Dépannage
+- Serveur backend ne démarre pas :
+  1. Vérifiez que le port 5000 est libre
+  2. Supprimez node_modules puis exécutez npm install
+
+- Frontend React ne démarre pas :
+  1. Vérifiez que le port 3000 est libre
+  2. Supprimez node_modules puis exécutez npm install
+
+- Erreur de base de données :
+  - Démarrez toujours le backend AVANT le frontend
+
+---
+
+## 📝 Notes
+- Données stockées localement dans SQLite
+- Fichiers uploadés → server/uploads/
+- Application en mode développement
+
+---
+
+## 🎯 Utilisation conseillée
+1. Ajouter des candidats
+2. Créer des candidatures
+3. Suivre les statistiques sur le tableau de bord
+
+---
+
+## 💡 Conseils
+- Utilisez Chrome ou Firefox
+- Une base d’exemple est déjà incluse
+- Toutes les opérations CRUD sont actives
